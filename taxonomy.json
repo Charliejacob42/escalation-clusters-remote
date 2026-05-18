@@ -1,0 +1,658 @@
+{
+  "taxonomy": [
+    {
+      "cluster": "Endorsement execution",
+      "description": "User wants a change to an existing policy (vehicles, drivers, lienholders, names, coverage, address, mileage, household status, SR-22/FR-44 filings) that the bot cannot push to the carrier or that the in-app endorsement flow refuses. Resolution requires an agent to execute the endorsement via CRM/carrier or unblock the in-app flow.",
+      "subclusters": [
+        {
+          "subcluster": "Add/swap/remove vehicle",
+          "description": "Vehicle add, swap, or remove endorsement that the in-app flow looped on or that the carrier requires an agent to push.",
+          "fix_signature": "Build a bot-side vehicle endorsement tool that submits add/swap/remove to the carrier and handles common in-app blockers (16-vs-17 character VIN validation, unsupported trailer/RV class, looping vehicle update form, save button stays grayed out, swap during a pending purchase). Today an agent has to relay the change to the carrier or restart the in-app flow.",
+          "indices": [
+            19,
+            126,
+            160,
+            161,
+            171,
+            183,
+            207,
+            226
+          ]
+        },
+        {
+          "subcluster": "Add/exclude/remove driver",
+          "description": "Driver add, exclude, or remove endorsement blocked by carrier rules or in-app validation.",
+          "fix_signature": "Build a bot-side driver endorsement tool that submits add/exclude/remove and handles carrier-rule edge cases (Progressive's signed-exclusion-form requirement, spouse-cannot-be-excluded-without-paperwork, unlicensed-household status, blank-screen in-app driver flow, gender-required validation, removal of non-household persons listed in error). Today an agent has to push the change and chase carrier paperwork.",
+          "indices": [
+            66,
+            92,
+            93,
+            122,
+            139,
+            140,
+            156,
+            168,
+            169,
+            176,
+            177,
+            202,
+            210
+          ]
+        },
+        {
+          "subcluster": "Add lienholder",
+          "description": "Add a lienholder/loss-payee where the in-app Save button stays grayed out at validation.",
+          "fix_signature": "Build a bot-side lienholder-add tool that pushes lender name and mailing address to the carrier without depending on the in-app Save button (which routinely stays grayed out at validation). Today users hit the Save bug and an agent has to relay the lender info to the carrier manually.",
+          "indices": [
+            44,
+            146,
+            162,
+            167,
+            170
+          ]
+        },
+        {
+          "subcluster": "Cancel pending endorsement",
+          "description": "User submitted an endorsement in error and needs it retracted before the carrier processes it.",
+          "fix_signature": "Build a bot-side cancel-pending-endorsement tool that retracts an in-flight policy change (wrong-vehicle add, wrong coverage, wrong marital status, overlapping endorsements). Today the bot has zero retraction tooling and an agent must call the carrier or back-office team to undo it.",
+          "indices": [
+            54,
+            59,
+            61,
+            62,
+            63
+          ]
+        },
+        {
+          "subcluster": "Coverage / mileage change",
+          "description": "Coverage downgrade, UM add, or mileage update blocked by an unrelated pending document or by the carrier-side flow.",
+          "fix_signature": "Build a bot-side coverage-change tool (add/drop UM, downgrade to liability, push mileage updates) that handles unrelated pending-doc blockers and pushes the change to the carrier. Today coverage edits either fail to push or are blocked by an unrelated pending document.",
+          "indices": [
+            23,
+            60,
+            65,
+            209
+          ]
+        },
+        {
+          "subcluster": "Name change endorsement",
+          "description": "User legally changed their name and needs the policy and supporting docs updated.",
+          "fix_signature": "Build a bot-side name-change endorsement tool that accepts an updated license image, validates legal-name format (including single-name FNU cases), pushes the change to the carrier, and re-issues policy documents. Today an agent has to validate the doc and push the change.",
+          "indices": [
+            152,
+            213,
+            238
+          ]
+        },
+        {
+          "subcluster": "Effective date / address / named insured change",
+          "description": "Lower-volume endorsement-execution cases: effective-date adjustment, mailing/garaging address change, and add-named-insured/household-member.",
+          "fix_signature": "Build bot-side endorsement tooling for effective-date change (resets stale e-sign packets), mailing/garaging address change (unblocks Basic Info during pending purchase), and add-named-insured / household member add. Today every one of these requires an agent to call the carrier or push the change in CRM.",
+          "indices": [
+            85,
+            110,
+            145,
+            151,
+            166
+          ]
+        },
+        {
+          "subcluster": "Carrier-blocked endorsement (UW decline / rating error / verification code)",
+          "description": "Endorsement is stuck because the carrier has blocked it on underwriting, a rating-engine error, or a required SMS/cell-phone verification.",
+          "fix_signature": "Add bot-side reads for carrier underwriting decisions and rating-engine errors so the bot can either explain the block to the user or trigger a structured callout, plus relay carrier-required SMS/cell-phone verification codes. Today the change is stuck in carrier-side limbo and an agent must call the carrier to resolve and report back.",
+          "indices": [
+            55,
+            56,
+            57,
+            64
+          ]
+        },
+        {
+          "subcluster": "Filing setup (SR-22 / FR-44)",
+          "description": "User has an SR-22/FR-44 filing requirement that the in-app quote/policy flow does not surface (cross-state filings, FR-44 add, filing verification).",
+          "fix_signature": "Build a bot-side filing-modify tool that adds, removes, or transfers SR-22/FR-44 filings across states and re-triggers carrier documents. Today the in-app quote flow does not surface the filing option and an agent has to add it manually.",
+          "indices": [
+            4,
+            7,
+            72
+          ]
+        },
+        {
+          "subcluster": "Endorsement status / other",
+          "description": "Single-instance endorsement issues that share the same fix family but don't fit cleanly: pending-endorsement status read, Spanish callback for endorsement, blocked endorsement plus esign tied to a past-due balance.",
+          "fix_signature": "Targeted improvements alongside the other endorsement subclusters: a bot-side endorsement-status read, a Spanish-routing path for endorsement walkthroughs, and a clearance path when an endorsement is blocked by a past-due balance. Today each of these requires an agent.",
+          "indices": [
+            53,
+            133,
+            153,
+            182
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Document generation",
+      "description": "User needs a document the bot cannot produce or refresh: updated ID cards, declarations page, e-sign packet, dealer binder, state-stamped registration form (RTA), historical proof of coverage, post-endorsement or post-reinstatement policy docs, application corrections, carrier-side document submission.",
+      "subclusters": [
+        {
+          "subcluster": "Stale ID card / declarations page (post-change)",
+          "description": "After an endorsement, the user needs an updated ID card or dec page that the in-app refresh has not yet produced.",
+          "fix_signature": "Add a bot-side document-refresh tool that triggers carrier regeneration of the ID card and declarations page after an endorsement and detects when the carrier has not yet updated the doc. Today users wait 24-48 hours and an agent has to manually regenerate or relay the updated docs.",
+          "indices": [
+            138,
+            142,
+            143,
+            157,
+            165
+          ]
+        },
+        {
+          "subcluster": "Policy documents on demand (new / reinstated / dealer / historical)",
+          "description": "User needs proof-of-coverage / ID card / dec page / dealer binder for a newly bound, just-reinstated, or specific historical period that the in-app document store does not surface.",
+          "fix_signature": "Add a bot-side document-fetch tool for newly bound or just-reinstated policies, dealer-ready binders, historical terms, and specific vehicles within a multi-vehicle policy. Today the bot tells users to wait or surfaces only current docs and an agent has to chase them.",
+          "indices": [
+            111,
+            115,
+            134,
+            155,
+            159,
+            163
+          ]
+        },
+        {
+          "subcluster": "E-sign resend / regenerate / access code",
+          "description": "Carrier e-sign packet did not arrive, was rejected by the user's PIN, or is missing for a co-applicant.",
+          "fix_signature": "Extend resend_esign_automation to all carriers (today fails on Aspire, Safeco/Liberty Mutual, Progressive motorcycle re-issue) and add tooling to recover from DocuSign access-code lockouts and co-applicant-link failures. Today resend_esign returns success but the email never arrives, forcing an agent to manually prepare and resend the packet.",
+          "indices": [
+            81,
+            97,
+            154,
+            179,
+            180,
+            197
+          ]
+        },
+        {
+          "subcluster": "State registration form (RTA) generation",
+          "description": "User needs a state-stamped registration form (Massachusetts RTA-1 and equivalents) generated from policy data.",
+          "fix_signature": "Build a bot-side tool that generates the state-stamped electronic registration form (Massachusetts RTA-1, equivalents in other states) using policy data plus user-supplied vehicle/plate details. Today this is a fully manual agent task, often time-pressured because the user is at the RMV.",
+          "indices": [
+            137,
+            174,
+            175
+          ]
+        },
+        {
+          "subcluster": "Carrier document submission / DMV verification / application correction",
+          "description": "User-supplied document or correction needs to be submitted to the carrier or to the state DMV; the bot has no outbound channel.",
+          "fix_signature": "Build a bot-side outbound document-submission tool that forwards user-uploaded documents (roof photos, invoices, RTA, application corrections, cross-state DMV verification) to the carrier or state DMV through the right channel and confirms receipt. Today the bot has no path to send anything to the carrier and an agent must email or relay manually.",
+          "indices": [
+            158,
+            164,
+            172
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Document review",
+      "description": "Carrier is requiring the user to upload a specific underwriting document (vehicle photos, proof of prior insurance, residency/garaging/homeownership, driver license, accident proof). The bot cannot validate, accept, or override the carrier's requirement; an agent must review, accept/reject, or escalate to the carrier.",
+      "subclusters": [
+        {
+          "subcluster": "Vehicle photos (capture, upload, rejection)",
+          "description": "Carrier-required vehicle photo capture/upload that the in-app UI failed on or that the carrier rejected.",
+          "fix_signature": "Improve the in-app vehicle-photo upload UI (currently missing/non-functional in some sessions) and add bot-side guidance plus pre-validation against carrier acceptance criteria (angle, framing, plate visibility). Today an agent has to coach the user through retakes and relay to the carrier.",
+          "indices": [
+            21,
+            94,
+            196,
+            205,
+            208
+          ]
+        },
+        {
+          "subcluster": "Proof of prior coverage / insurance",
+          "description": "Carrier requires proof of prior insurance with a specific date range, carrier, and continuity that the user's uploads keep failing on.",
+          "fix_signature": "Build a bot-side prior-coverage validator that checks uploaded docs for date range, carrier, and continuity (e.g., 6 months for Anchor TX, 5 years for Gainsco) and a clearer in-app rejection-reason surface. Today the agent has to repeatedly ask for usable files and explain carrier-specific rules.",
+          "indices": [
+            99,
+            173,
+            198,
+            203,
+            204,
+            211
+          ]
+        },
+        {
+          "subcluster": "Carrier-required underwriting doc (license / residency / garaging)",
+          "description": "Driver license image, residency proof, garaging proof, or homeownership proof that fails carrier acceptance.",
+          "fix_signature": "Build a bot-side document validator that knows each carrier's accepted document list (Progressive's two-utility-bills rule, National General requirements, license front-and-back capture) and pre-validates uploads. Today the bot only lists rules and an agent reviews each upload.",
+          "indices": [
+            86,
+            88,
+            194,
+            200,
+            212
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Underwriting pre-cancel",
+      "description": "Carrier has issued an underwriting threat-of-cancel. Bot cannot read carrier-specific UW requirements or dispute the trigger; agent must call the carrier or push specific documents to clear the flag.",
+      "subclusters": [
+        {
+          "subcluster": "Pre-cancel UW request (license / e-sign / accident details)",
+          "description": "Carrier-issued pre-cancel notice tied to a specific missing item or dispute the user wants to make.",
+          "fix_signature": "Build a bot-side carrier-underwriting-requirement reader (start with Progressive, then The General, AssuranceAmerica) that returns the exact missing item (driver license proof, accident details, e-sign) and a structured dispute relay. Today the bot only sees the at-risk flag and an agent has to call the carrier to learn what is needed and relay any dispute.",
+          "indices": [
+            239,
+            240,
+            241,
+            242,
+            243
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Carrier callout",
+      "description": "Resolution requires the agent to phone the carrier to verify a fact, push a change, dispute a charge, or chase a refund. The bot has no equivalent tool and can only stage data for the agent.",
+      "subclusters": [
+        {
+          "subcluster": "Refund status / mailing address followup",
+          "description": "User is chasing a pending refund check or correcting the mailing address the carrier is using.",
+          "fix_signature": "Build a bot-side refund-status tool that reads carrier refund queues (Bristol West, National General, Bluefire, Mendota) and exposes the mailing address. Today the agent has to call the carrier to confirm refund issued, amount, and destination address.",
+          "indices": [
+            31,
+            33,
+            40,
+            108,
+            125
+          ]
+        },
+        {
+          "subcluster": "Post-endorsement sync / SR-22 verification / followup",
+          "description": "Endorsement or SR-22 filing has not synced between Jerry and the carrier (or between carrier and DMV) and needs an agent to chase the carrier.",
+          "fix_signature": "Add a bot-side carrier-state-refresh tool that queries the carrier for the latest endorsement status, SR-22 DMV filing status, and reconciles Jerry-side data after a delay. Today users wait days and an agent has to call the carrier to confirm status and trigger a manual sync.",
+          "indices": [
+            27,
+            127,
+            148,
+            181,
+            184
+          ]
+        },
+        {
+          "subcluster": "Discount / rate dispute",
+          "description": "Carrier removed discounts or recomputed rate due to a profile change that the user disputes.",
+          "fix_signature": "Build a bot-side discount-roster reader that surfaces which discounts the carrier removed (Good Driver, 5-Year Accident-Free, Good Student, marital status) and why, plus a structured callout for restoration. Today the agent has to call the carrier to inventory removed discounts and request restoration.",
+          "indices": [
+            17,
+            199,
+            227,
+            235
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Billing change",
+      "description": "User wants a payment-related operation (move date, change method, stop or restore autopay, post payment, retry failed draft, switch payment plan, confirm direct-to-carrier payment) that the bot cannot push to the carrier or to Jerry's billing system.",
+      "subclusters": [
+        {
+          "subcluster": "Payment due-date change",
+          "description": "User wants a one-time or permanent due-date shift that the carrier's rule may or may not allow.",
+          "fix_signature": "Build a bot-side due-date-change tool that submits one-time and permanent due-date shifts per carrier rules (Progressive 10-day, National General fixed window, etc.) and rejects ineligible requests with the right reason. Today every shift requires an agent to call the carrier or process in CRM.",
+          "indices": [
+            11,
+            15,
+            16,
+            29,
+            35,
+            47,
+            50
+          ]
+        },
+        {
+          "subcluster": "Autopay change (enable / disable / method)",
+          "description": "User wants to turn autopay on/off, change the autopay method, or restore an autopay discount the carrier removed.",
+          "fix_signature": "Build a bot-side autopay enable/disable/method-change tool that handles carrier paperwork (Bluefire's signed-letter requirement, AssuranceAmerica process) and re-enrolls autopay discounts. Today every autopay change requires an agent to send forms or run the carrier portal.",
+          "indices": [
+            22,
+            26,
+            34,
+            41,
+            45,
+            48
+          ]
+        },
+        {
+          "subcluster": "Direct-to-carrier payment confirmation / failed activation",
+          "description": "User paid the carrier directly or had a new-policy activation fail; Jerry-side payment history does not reflect the action.",
+          "fix_signature": "Build a bot-side carrier-payment-receipt reader so payments made directly to the carrier (Infinity, Bristol West, AssuranceAmerica) are reflected in Jerry within minutes, and add a failed-activation refund tool. Today the bot can see only Jerry-side history and an agent has to call the carrier or wait for posting.",
+          "indices": [
+            129,
+            193,
+            228
+          ]
+        },
+        {
+          "subcluster": "Other payment operations (method update / cancel pending / plan switch)",
+          "description": "Lower-volume payment operations: changing the card on file, retracting a pending payment, switching between PIF and monthly plans.",
+          "fix_signature": "Build bot-side payment-mutation tooling: a payment-method-update tool that swaps card/bank with the carrier and runs early/manual draws, a stop-pending-payment tool that retracts queued drafts before they post, and a payment-plan switcher that handles PIF-to-monthly conversions per carrier rules. Today each of these requires an agent to call the carrier or run the change in the carrier portal.",
+          "indices": [
+            30,
+            49,
+            51,
+            52,
+            119,
+            217
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Billing dispute",
+      "description": "User disputes a billing amount, schedule, or charge. Bot can read schedules but cannot reconcile carrier-side discrepancies (paid-in-full mismatch, duplicate charges, residual balance, renewal billing surprise, fee waivers). Agent must call the carrier to investigate.",
+      "subclusters": [
+        {
+          "subcluster": "Paid-in-full / installment / renewal mismatch",
+          "description": "Jerry payment history disagrees with the carrier balance: residual balance, missed payment doubling next bill, schedule mismatch, credits from cancelled endorsements, renewal-pricing surprise.",
+          "fix_signature": "Build a bot-side paid-in-full reconciliation and renewal-billing explainer that aligns Jerry payment history with carrier-side balance, decomposes the upcoming bill into renewal premium plus endorsement debits/credits plus state fees (e.g., AZ Theft Authority Fee), and flags residual balances or doubled bills. Today the bot only sees the symptom and an agent calls the carrier.",
+          "indices": [
+            12,
+            14,
+            18,
+            20,
+            28,
+            32,
+            38,
+            39,
+            46,
+            188
+          ]
+        },
+        {
+          "subcluster": "Duplicate charge / pre-bind authorization dispute",
+          "description": "User believes they were double-charged or sees a pre-bind authorization they don't recognize.",
+          "fix_signature": "Build a bot-side duplicate-charge detector that compares Jerry-posted payments against carrier-portal payments and surfaces double-debits with a refund-request callout, including pre-bind authorization holds. Today every duplicate-charge case requires an agent to call the carrier to confirm and refund.",
+          "indices": [
+            24,
+            25,
+            82
+          ]
+        },
+        {
+          "subcluster": "Cancellation-related billing (renewal during switch / posted-but-cancelled)",
+          "description": "Cancellation processing collided with renewal autopay or with a payment that posted after cancellation; carrier billing state is inconsistent.",
+          "fix_signature": "Build a bot-side carrier-billing-state read that detects the cancellation-vs-renewal collision (renewal autopay drafted while switch processing) and the payment-posted-but-cancelled case. Today the agent calls the carrier to confirm cancellation processing and refund the renewal charge.",
+          "indices": [
+            36,
+            74,
+            106
+          ]
+        },
+        {
+          "subcluster": "Fee waiver / hardship hold",
+          "description": "User wants a fee waived (NSF/late) or a hardship hold on cancellation; bot cannot grant either.",
+          "fix_signature": "Build a bot-side fee-waiver request tool tied to the carrier's waiver policy (NSF/late) and a hardship-hold capability. Today the agent has to verify any prior verbal waiver and is usually unable to honor it.",
+          "indices": [
+            13,
+            109,
+            244
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Cancellation / reinstatement",
+      "description": "User wants to cancel a policy (active or pending), change a cancellation effective date, rescind a cancellation, or reinstate a cancelled policy. Bot can deep-link to the in-app cancel/reinstate flow but cannot edit, retract, or push reinstatement to the carrier.",
+      "subclusters": [
+        {
+          "subcluster": "Reinstatement after cancellation",
+          "description": "Policy is cancelled; user wants it reinstated and Jerry/carrier views are out of sync on eligibility or status.",
+          "fix_signature": "Build a bot-side reinstatement orchestrator that checks carrier-side eligibility, posts the reinstatement payment, and confirms the policy is active again (Gainsco, Aspire, Bluefire, Bristol West, Apollo). Today the agent must call the carrier to confirm eligibility and verify reinstatement.",
+          "indices": [
+            101,
+            103,
+            104,
+            105,
+            107,
+            130,
+            149,
+            195
+          ]
+        },
+        {
+          "subcluster": "Cancellation date / rescind / reason",
+          "description": "User wants to change the cancellation effective date, rescind a cancellation, or get the cancellation reason.",
+          "fix_signature": "Build a bot-side cancel-date-edit and cancel-rescind tool that submits the change to the carrier and surfaces the cancellation reason. Today the agent has to call the carrier to move the date, undo the cancel, or explain why the policy was cancelled.",
+          "indices": [
+            201,
+            229,
+            230,
+            231,
+            232
+          ]
+        },
+        {
+          "subcluster": "Cancel pending / prior-policy / billing-driven cancel",
+          "description": "User wants a pending purchase cancelled, confirmation that the prior policy was cancelled when switching, or guidance through a pre-cancel billing situation.",
+          "fix_signature": "Build a bot-side pending-purchase-cancel tool plus a prior-policy cancellation status check so users can confirm Jerry actually cancelled the old carrier and stop a pending purchase without an agent. Today the bot loops on status and an agent has to confirm via CRM.",
+          "indices": [
+            43,
+            80,
+            147
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "New policy bind",
+      "description": "User is mid-purchase or trying to bind a new policy and the carrier or in-app flow is blocking (declined down payment, expired start date, system outage, vehicle photos required, motorcycle/RV/home/bundle bind, unlicensed driver, non-owner SR-22, missing UW info, pending-purchase data fix). Sales/RTC agent must finish the bind manually.",
+      "subclusters": [
+        {
+          "subcluster": "Bind blocker (payment / start date / outage / activation)",
+          "description": "Pending bind is stuck on a declined down payment, expired start date, carrier system outage, or unverifiable activation.",
+          "fix_signature": "Add bot-side bind-recovery tools: retry declined down payment with a new card, push expired-start-date refresh, detect and explain carrier outages, and verify carrier-side activation (Mile Auto, Kemper, Progressive). Today every blocker requires an RTC agent to retry the bind manually.",
+          "indices": [
+            10,
+            58,
+            67,
+            68,
+            70,
+            71,
+            73,
+            224
+          ]
+        },
+        {
+          "subcluster": "Carrier-required bind UW info collection",
+          "description": "Carrier needs additional underwriting info (DOB, employer, mortgage, lienholder, household drivers, property condition) and the agent is using the bot as a relay channel.",
+          "fix_signature": "Build a bot-side carrier-UW-info collector that pre-fetches and submits carrier-required bind data (DOB, employer/occupation, mortgage info, lienholder details, household-driver status, discovered drivers, home property condition) without using the bot as a manual relay. Today an agent ferries each answer to the carrier portal turn by turn.",
+          "indices": [
+            69,
+            76,
+            77,
+            79,
+            83,
+            84,
+            90,
+            91,
+            96
+          ]
+        },
+        {
+          "subcluster": "Bind decline (no license / underwriting)",
+          "description": "Bind cannot complete because the user has no valid license or the carrier declined the risk.",
+          "fix_signature": "Build a bot-side underwriting-decline path that explains the decline reason and offers an alternative carrier or non-owner SR-22 option. Today the agent has to deliver the decline and offer alternatives manually.",
+          "indices": [
+            78,
+            95,
+            100
+          ]
+        },
+        {
+          "subcluster": "Sales bind (motorcycle / RV / bundle / home)",
+          "description": "User wants to bind a non-auto product (motorcycle, RV, home, bundled home+auto) that the bot cannot quote or bind.",
+          "fix_signature": "Expand bot-side sales tooling beyond auto: bind motorcycle, RV (separate policy), home, bundled home+auto with escrow setup using the same payment and e-sign rails. Today every non-auto bind requires a licensed sales specialist.",
+          "indices": [
+            75,
+            112,
+            144,
+            150,
+            214,
+            218,
+            220
+          ]
+        },
+        {
+          "subcluster": "Non-owner SR-22 bind",
+          "description": "User needs a non-owner SR-22 policy plus DMV filing; today this case bounces between Sales and Support.",
+          "fix_signature": "Build a bot-side non-owner SR-22 quote and bind path (Gainsco, Dairyland, etc.) plus the post-bind DMV filing. Today the case is routed back and forth between Sales and Support because no team owns it cleanly.",
+          "indices": [
+            3,
+            245,
+            246,
+            247,
+            248
+          ]
+        },
+        {
+          "subcluster": "Confirmed-rate handoff / sales walkthrough",
+          "description": "User replied 'Call me' or 'Agent' to a confirmed-rate prompt or wants a binding sales conversation, including effective-date/carrier-swap conversations and Liberty Mutual carrier-direct cases.",
+          "fix_signature": "Build a bot-side confirmed-rate finalizer that processes a 'Call me' or 'Agent' reply by collecting outstanding driver/license info and completing the bind without a sales callback, plus a carrier-direct-servicing flag for Liberty Mutual that hands off straight to the carrier with full context. Today every confirmed-rate finalization requires a sales callback or carrier swap conversation.",
+          "indices": [
+            5,
+            8,
+            87,
+            117,
+            118,
+            120,
+            128,
+            131,
+            136,
+            215
+          ]
+        },
+        {
+          "subcluster": "Pending-purchase data fix (VIN / address / plan)",
+          "description": "User needs to edit VIN, address, payment plan, or vehicle photos on a pending purchase; the in-app screen is read-only.",
+          "fix_signature": "Build a bot-side pending-purchase data-edit tool that lets users (or the bot) edit VIN, address, payment plan, and vehicle photos while a purchase is pending without canceling and re-quoting. Today the in-app pending-purchase screen is read-only and an agent has to edit in CRM.",
+          "indices": [
+            102,
+            123,
+            191,
+            233
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Profile / accident dispute",
+      "description": "User wants Jerry's profile corrected — at-fault accident reclassified, wrong driver on a claim, email of record updated, single-name FNU placeholder, wrong-number record removal. Resolution is a CRM-only edit; no carrier action required.",
+      "subclusters": [
+        {
+          "subcluster": "Accident reclassification on profile",
+          "description": "User uploads supporting documentation (police report, carrier letter, LexisNexis correction) to reclassify or remove an at-fault accident on the Jerry profile.",
+          "fix_signature": "Build a bot-side accident-reclassification CRM tool that ingests the supporting document (police report, carrier letter, LexisNexis correction) and updates the accident record on the profile. Today every reclassification is an agent-only CRM edit.",
+          "indices": [
+            1,
+            2,
+            6,
+            9
+          ]
+        },
+        {
+          "subcluster": "Profile data edits (email / wrong number)",
+          "description": "Email of record needs to change in Jerry and the carrier, or a wrong-number recipient wants their record fully removed beyond marketing opt-out.",
+          "fix_signature": "Build a bot-side profile-edit tool that updates email of record across Jerry and the carrier and fully removes wrong-number records (beyond just sms_marketing_opt_out). Today an agent has to edit the profile or fully delete the record manually.",
+          "indices": [
+            178,
+            185,
+            249,
+            250
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Knowledge / advisory only",
+      "description": "User asked a question with no execution required. Bot escalated because the answer is carrier-specific, time-bound, or judgment-laden, but the resolution is information delivery rather than a system action.",
+      "subclusters": [
+        {
+          "subcluster": "Carrier rule / coverage / renewal question",
+          "description": "Generic carrier-rule, coverage-scope, or renewal-pricing question that the bot could not authoritatively answer.",
+          "fix_signature": "Expand the knowledge repo with carrier-specific entries (refund-as-credit-vs-check rules, renters food-spoilage scope, pre-renewal pricing availability, external policy linking unsupported, RMV-1 form, carrier-direct servicing rules) and route these questions to a knowledge-answering branch instead of escalation. Today the bot says it cannot verify and escalates for an answer the agent reads aloud.",
+          "indices": [
+            37,
+            42,
+            98,
+            135,
+            237
+          ]
+        }
+      ]
+    },
+    {
+      "cluster": "Generic human request / callback",
+      "description": "User opened the chat asking for a human, callback, or specific phone-routing with no system action required, or got stuck on a non-trivial app/quote-flow blocker. Bot escalated correctly per its rules; agent (or scheduled callback) just responds.",
+      "subclusters": [
+        {
+          "subcluster": "Generic call / callback request",
+          "description": "User asked for a human or callback with no specific issue, or with a topic the bot routes straight to phone (home insurance, RV, billing, document upload, Spanish agent).",
+          "fix_signature": "Tighten the bot's pre-handoff probe so a 'call me' or 'speak to agent' request collects topic and urgency before queuing a callback, and route phone-only topics (home, RV, billing, Spanish-speaking) to the right team directly. Today the bot queues a generic callback and the user has to re-explain to the agent.",
+          "indices": [
+            89,
+            113,
+            116,
+            121,
+            124,
+            132,
+            187,
+            190,
+            192,
+            206,
+            216,
+            225
+          ]
+        },
+        {
+          "subcluster": "Scheduled callback (sales / endorsement walkthrough)",
+          "description": "User scheduled a callback for a multi-step task (failed payment recovery, home quote walkthrough, multi-vehicle endorsement, bundled-quote address fix) that the bot cannot complete on its own.",
+          "fix_signature": "Build a self-serve walkthrough flow for the most common callback reasons (failed-payment recovery, home quote walkthrough, multi-vehicle endorsement, stuck quote/address verification) so users do not need a phone call. Today the bot only schedules the callback.",
+          "indices": [
+            219,
+            221,
+            222,
+            223
+          ]
+        },
+        {
+          "subcluster": "Quote-flow / app-toggle blockers (VIN / plate / coverage edit / discount toggle)",
+          "description": "User got stuck inside the quote flow or in-app toggles (non-17-char VIN, plate lookup, classic-truck path, coverage-edit price refresh, app navigation loop, locked discount toggle).",
+          "fix_signature": "Fix bot-side quote-flow and in-app toggle blockers: non-17-character VIN handling, plate lookup failure, classic-truck/imported-vehicle path, coverage-edit price refresh, app navigation loops, defensive driving discount eligibility ingestion. Today users get stuck in the quote/edit flow and an agent or callback is required.",
+          "indices": [
+            114,
+            141,
+            186,
+            189,
+            234,
+            236
+          ]
+        }
+      ]
+    }
+  ],
+  "long_tail": {
+    "description": "No records. All 250 fit a subcluster meeting the four principles.",
+    "indices": []
+  },
+  "design_notes": [
+    "Tier-1 organization is by 'what the agent must build/do' (the fix signature axis), not by user intent. So 'I want to add a vehicle' that is blocked by missing UW info lives in 'New policy bind / Carrier-required bind UW info collection' (fix = bot-side UW collector), while 'I want to add a vehicle' that is blocked by an in-app save bug lives in 'Endorsement execution / Add/swap/remove vehicle' (fix = bot-side vehicle endorsement tool). This keeps coherence within cluster (principle 4) and distinguishability across clusters (principle 2).",
+    "Several tier-2 themes were too small to stand on their own (effective-date change, address change, named-insured add, payment-method update, pending-payment cancel, plan switch, renewal billing surprise, Liberty Mutual carrier-direct, defensive driving toggle, historical proof of coverage, license image review, SR-22/FR-44 filing setup as a standalone cluster). Each was merged into the closest sibling whose fix signature is structurally the same (bot-side endorsement tool, bot-side payment-mutation tool, bot-side billing reconciler, etc.). Naming on the merged subclusters preserves the constituent parts so analysts can still see what was folded.",
+    "Three tier-1 borderline calls: (1) 'Carrier callout' was kept as its own cluster rather than folded into 'Endorsement execution' or 'Billing reconciliation' because the gap is specifically 'agent must phone the carrier' (refund check status, post-endorsement sync, discount restoration), which is a distinct fix from the bot-side mutation tools required for the other clusters. (2) 'Underwriting pre-cancel' (5 records) was kept separate from 'Document review' because the carrier-side trigger (Progressive UW SMS) and the fix (bot-side UW-requirement reader) are structurally different from inbound document-review queues. (3) The SR-22/FR-44 'Filing setup' theme had only 3 records, which would not meet the 5-record cluster floor; it was folded into 'Endorsement execution' as a subcluster (modifying a policy filing is structurally a policy endorsement).",
+    "Reconciled from dual passes A and B. A used as spine. B's tighter cluster names adopted: 'Payment operations' -> 'Billing change', 'Billing reconciliation' -> 'Billing dispute'. B's 3-record long_tail was rejected on review — those 3 records (42, 98, 237) share a fix signature with the other 2 records in 'Knowledge / advisory only', so they remain there. B's other structural moves (merging Document generation into Document review, folding Underwriting pre-cancel into Carrier callout, moving confirmed-rate handoff into Phone routing, force-grouping cancellation+reinstatement into one cluster) were rejected because A's finer separation aligns better with distinct fix signatures."
+  ]
+}
