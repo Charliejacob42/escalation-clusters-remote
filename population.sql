@@ -234,6 +234,25 @@ escalation_events AS (
 )
 -- End of policy_active_per_escalation: PH flag at exact escalation moment per row.
 
+-- Start of carriers_per_escalation
+-- Purpose: Resolve active carrier(s) at exact escalation moment via mv_policy_status, mirroring card 27114's user_carriers_at_anchor pattern. LEFT JOIN so escalations with no active policy return empty array.
+, carriers_per_escalation AS (
+    SELECT
+        ee.dec_user_id AS dec_user_id
+      , ee.created_at AS escalation_time
+      , ee.escalation_type AS escalation_type
+      , toJSONString(arrayFilter(x -> x IS NOT NULL AND x != '', groupUniqArray(ps.carrier_name))) AS carriers
+    FROM escalation_events_deduped AS ee
+    LEFT JOIN magic.mv_policy_status AS ps
+        ON ps.user_id = ee.dec_user_id
+        AND ps.start_date < ps.end_date
+        AND ps.start_date <= toDate(toTimezone(ee.created_at, 'America/New_York'))
+        AND coalesce(ps.end_date, toDate('2099-12-31')) >= toDate(toTimezone(ee.created_at, 'America/New_York'))
+    GROUP BY ee.dec_user_id, ee.created_at, ee.escalation_type
+)
+-- End of carriers_per_escalation: array of active carrier names per escalation event (empty if no active policy).
+
+
 -- Start of users_deduped
 -- Purpose: Dedupe main.users multi-row-per-id (~2M dupes) via argMax on updated_at before downstream join.
 , users_deduped AS (
@@ -355,6 +374,7 @@ escalation_events AS (
       , fpe.front_conv_api_id AS front_conv_api_id
       , spe.user_stage AS user_stage
       , pape.is_policyholder_int AS is_policyholder_int
+      , cpe.carriers AS carriers
     FROM escalation_events_deduped AS ee
     LEFT JOIN message_conversations AS mc
         ON ee.target_msg_id = mc.msg_external_id
@@ -375,6 +395,10 @@ escalation_events AS (
         ON ee.dec_user_id = spe.dec_user_id
         AND ee.created_at = spe.escalation_time
         AND ee.escalation_type = spe.escalation_type
+    LEFT JOIN carriers_per_escalation AS cpe
+        ON ee.dec_user_id = cpe.dec_user_id
+        AND ee.created_at = cpe.escalation_time
+        AND ee.escalation_type = cpe.escalation_type
     LEFT JOIN policy_active_per_escalation AS pape
         ON ee.dec_user_id = pape.dec_user_id
         AND ee.created_at = pape.escalation_time
@@ -405,6 +429,7 @@ SELECT
   , je.conv_id_source AS conv_id_source
   , je.user_stage AS user_stage
   , coalesce(je.is_policyholder_int, 0) = 1 AS is_policyholder
+  , coalesce(nullIf(je.carriers, ''), '[]') AS carriers
   , multiIf(
         je.escalation_type IN ('Billing', 'Cancel Request', 'Recent Cancel', 'Pre Cancel', 'NNO', 'Doc Request', 'EIP', 'CRT Lite', 'Wrong Number', 'Legal'), 'RTC',
         je.escalation_type IN ('nPH P3', 'nPH P4', 'nPH P5', 'nPH P6', 'nPH Active RTC'), 'Sales Lite',
