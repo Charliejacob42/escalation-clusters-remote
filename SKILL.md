@@ -105,7 +105,7 @@ python3 ~/.claude/skills/escalation-clusters/split_batches.py \
     $RUN_DIR/enriched.json $RUN_DIR/batch $NUM_BATCHES
 ```
 
-Launch one Sonnet subagent per batch via the Agent tool with `run_in_background: true`. Each agent receives this prompt:
+Launch one **Opus 4.7** subagent per batch via the Agent tool with `run_in_background: true`. Opus is used here because the analyst now extracts the `prompt_opportunity` field, which requires judgment about agent-stated rules vs inferred gaps — quality matters more than cost on this step. Each agent receives this prompt:
 
 > Run the Escalation Reason Analyst pipeline (v1) on a batch of N chatbot escalation records.
 >
@@ -145,7 +145,7 @@ python3 ~/.claude/skills/escalation-clusters/split_batches.py \
     $RUN_DIR/analyst_merged.json $RUN_DIR/cls_batch $NUM_CLS
 ```
 
-Launch one Sonnet subagent per classifier batch:
+Launch one **Sonnet 4.6** subagent per classifier batch (the classifier picks one option from a 46-subcluster locked taxonomy — Sonnet handles this constrained schema task well):
 
 > Run the Escalation Classifier pipeline (v1).
 >
@@ -182,7 +182,7 @@ python3 ~/.claude/skills/escalation-clusters/prep_opportunities.py \
     $RUN_DIR/opps_to_merge.json $RUN_DIR/existing_themes.json
 ```
 
-Launch ONE Sonnet subagent with this prompt:
+Launch ONE **Opus 4.7** subagent with this prompt (Opus chosen because theme merging is judgment-heavy — bad merges create duplicate themes in the cumulative tab):
 
 > Run the Opportunity Theme Merger (v1).
 >
