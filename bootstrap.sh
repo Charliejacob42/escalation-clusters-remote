@@ -6,10 +6,14 @@ set -euo pipefail
 
 echo "[bootstrap] starting"
 
-: "${METABASE_API_KEY:?METABASE_API_KEY env var required}"
 : "${FRONT_API_TOKEN_B64:?FRONT_API_TOKEN_B64 env var required}"
 : "${PROPELIX_CONFIG_B64:?PROPELIX_CONFIG_B64 env var required}"
 : "${GOOGLE_SA_B64:?GOOGLE_SA_B64 env var required}"
+: "${METABASE_DATA_SHEET_ID:?METABASE_DATA_SHEET_ID env var required (master sheet id)}"
+# METABASE_API_KEY is not required — the routine reads pre-pulled Metabase data from
+# hidden master sheet tabs (Apps Script time-trigger handles the actual queries
+# because Jerry's Metabase blocks Anthropic cloud IPs). Local laptop runs use
+# AWS SSM or set METABASE_API_KEY explicitly; remote routine runs use the sheet.
 
 mkdir -p "$HOME/.claude" "$HOME/.config/propelix"
 
@@ -31,19 +35,18 @@ pip install --quiet --disable-pip-version-check \
 
 echo "[bootstrap] python deps installed"
 
-# Sanity: Metabase key works.
+# Sanity: master sheet reachable via the service account.
 python3 - <<'PY'
-import os, requests, sys
-r = requests.post(
-    "https://metabase.ing.getjerry.com/api/dataset",
-    headers={"X-API-KEY": os.environ["METABASE_API_KEY"], "Content-Type": "application/json"},
-    json={"database": 8, "type": "native", "native": {"query": "SELECT 1 AS ok"},
-          "constraints": {"max-results": 1, "max-results-bare-rows": 1}},
-    timeout=30,
+import os, json
+from google.oauth2.service_account import Credentials
+import gspread
+creds = Credentials.from_service_account_file(
+    os.path.expanduser("~/.claude/google-sheets-sa.json"),
+    scopes=["https://www.googleapis.com/auth/spreadsheets"],
 )
-r.raise_for_status()
-rows = r.json().get("data", {}).get("rows", [])
-print(f"[bootstrap] Metabase OK: {rows}")
+gc = gspread.authorize(creds)
+sh = gc.open_by_key(os.environ["METABASE_DATA_SHEET_ID"])
+print(f"[bootstrap] Master sheet OK: {sh.title}")
 PY
 
 # Sanity: propelix-cli reachable.
